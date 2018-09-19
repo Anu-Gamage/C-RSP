@@ -1,13 +1,13 @@
 % Main test file for C-RSP vs benchmarks
 % Anuththari Gamage, Brian Rappaport
-% 6/29/2018
+% Last modified 9/19/2018
+%profile on
 
-saveoutput = 1;
+saveoutput = 0;
 
-tic
-% Algorithms used for comparison: 1 = C-RSP, 2 = SC-ML, 3 = CoregSC
-alg_names = {'CRSP', 'SCML', 'CSC'};
-algs = 1:3;
+% Algorithms used for comparison: 1 = C-RSP, 2 = CFE_it, 3 = SC-ML, 4 = CoregSC
+alg_names = {'CRSP', 'CFE_it', 'SCML', 'CSC'};
+algs = [1 2];
 % Datasets used: 1 = UCI, 2 = 3Sources, 3 = MultiviewTwitter
 dataset_names = {'uci','three','mvt'};
 datasets = 1;
@@ -15,7 +15,7 @@ datasets = 1;
 fp = 1;
 
 results = struct;
-num_reps = 10;
+num_reps = 2;
 for jj = datasets
     fprintf(fp,'-----------------------\n');
     switch dataset_names{jj}
@@ -48,14 +48,6 @@ for jj = datasets
             A = struct2cell(dataset_choice.A);
             labels = dataset_choice.labels;
             fprintf(fp,'Multiview Twitter:\n');
-%         case 'sbm'
-%             n = 500;
-%             k = 2;
-%             m = 3;
-%             cin = .02*n;
-%             lambda = 0.9;
-%             [A,labels] = mlsbm_gen(n,k,m,cin,lambda);
-%             fprintf(fp,'SBM Data (n = %d, k = %d, m = %d):\n',n,k,m);
         otherwise
     end
     fprintf(fp,'-----------------------\n');
@@ -76,6 +68,10 @@ for jj = datasets
                     b = 0.02;                       % inverse temperature parameter
                     [acc_val(kk),nmi_val(kk),~] = CRSP(A,n,k,m,b,labels);
                     fprintf(fp,'C-RSP run %d:\nCCR: %.2f\nNMI: %.2f\n\n',kk,acc_val(kk),nmi_val(kk));
+                case 'CFE_it'
+                    b = 0.02;                       % inverse temperature parameter
+                    [acc_val(kk),nmi_val(kk),~] = CFE_iter(A,n,k,m,b,labels);
+                    fprintf(fp,'C-FE_it run %d:\nCCR: %.2f\nNMI: %.2f\n\n',kk,acc_val(kk),nmi_val(kk));
                 case 'SCML'
                     lambda_scml = 0.5;              % regularization parameter for SC-ML
                     [acc_val(kk),nmi_val(kk),~] = SCML(A,k,lambda_scml,labels);
@@ -123,4 +119,5 @@ end
 if saveoutput
     save(['Results/runs/run_' char(datetime('now','Format','MM.dd.yyyy_HH:mm:ss.SSS')) '.mat'],'results');
 end
-toc
+
+%profile viewer

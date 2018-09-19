@@ -16,7 +16,7 @@ function [varargout] = CRSP(A, n, k, m, b, labels)
 % Anuththari Gamage, 3/22/2018
 % Modified Brian Rappaport, 7/4/2018
 
-    infFlag = 1e16;
+    infFlag = 1e12;
     
     P_ref = cell(1,m);                  % Reference transition probability
     for i = 1:m
@@ -28,7 +28,7 @@ function [varargout] = CRSP(A, n, k, m, b, labels)
        
     % Construct common W
     C = cellfun(@(A) 1./(A + infFlag*(A==0)),A,'un',0);           % Convert A into C
-    C_joint = combine_C(C);                    % Combined cost matrix   
+    C_joint = combine_C(C,infFlag);            % Combined cost matrix   
     P_joint = combine_P(P_ref);                % Combines probability matrix
     W = P_joint.*exp(-b*C_joint);              % Combined weights
    
@@ -49,12 +49,11 @@ function [varargout] = CRSP(A, n, k, m, b, labels)
     else
         % Spectral Clustering   
         aff = 1./(eye(n) + dRSP) - eye(n);      % Affinity Matrix
-        D = diag(sum(aff,2)) ;
-        L = (D^(-1/2))*aff*(D^(-1/2));          % Normalized Laplacian
-        [V,E] = eig(L);
-        [~,I] = sort(diag(E),'descend');
-        V = V(:, I(2:k+1)');                     % Changed to take from second largest ei.value onwards
+        D = diag(1./sqrt(sum(aff,2)));
+        L = D*aff*D;          % Normalized Laplacian
+        [V,~] = eigs(L,k+1);
         V = V./sqrt(sum(V.^2,2));
+        V = V(:,2:end);
 
         [final_labels,acc_arr,nmi_arr] = postproc(V,k,labels);
         varargout{1} = acc_arr;
@@ -63,12 +62,12 @@ function [varargout] = CRSP(A, n, k, m, b, labels)
     end
 end
 
-function new_C = combine_C(C)
+function new_C = combine_C(C,infFlag)
     m = numel(C);
-    new_C = C{1};
+    new_C = C{1}.*(C{1} < infFlag/2);
     nz_C = C{1}~=0;         % Tracks count of non-zero costs
     for layers = 2:m
-        new_C = new_C + C{layers};
+        new_C = new_C + C{layers}.*(C{layers} < infFlag/2);
         nz_C = nz_C + (C{layers}~=0);
     end
     new_C = new_C./(nz_C + (nz_C==0));
